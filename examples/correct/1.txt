@@ -1,0 +1,26 @@
+func main():
+	var i int = 1;
+	var j int = -2
+	var k int = 5 * 5;
+	var c0 char = '\000';
+	var c1 char = '\t';
+	var c2 char = 'a'
+	var c3 char = '3'
+	var s1[] str = "abcd";
+	var s1[5] str;
+	var s1[5 * 5] str;
+	while (i <> 100)
+		i = i + 1;
+		j = i
+		do
+			puts s1;
+			if (i < 30)
+				puts "e";
+			elif (i >= 30 and i < 60)
+				puts "f";
+			else
+				puts "g";
+			end;
+		while (j>=5);
+	end;
+end;

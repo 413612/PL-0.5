@@ -1,4 +1,3 @@
-import ctypes
 import ply.lex as lex
 
 
@@ -12,9 +11,9 @@ ESCAPE_SEQUENCES = {
 	r'\f': 12, # new page
 	r'\r': 13, # carriage return
 
-	r'\"': 34,
-	r'\'': 39,
-	r'\\': 92
+	r'\"': 34, # "
+	r'\'': 39, # '
+	r'\\': 92, # \
 }
 
 
@@ -83,17 +82,11 @@ class Lexer:
 	def t_CHAR_LIT(self, t):
 		r'\'([^\\\n]|(\\[abtnvfre\\\'\"])|(\\[0-3][0-7][0-7]))\''
 		value = t.value[1:-1]
-		value = ESCAPE_SEQUENCES.get(value) or int(value[1:], base=8) if '\\' in value else ord(value)
-		t.value = (value, ctypes.c_char(value))
+		t.value = value
 		return t
 
-	def t_empty_char_lit(self, t):
-		r'\'\''
-		column = t.lexer.lexpos - t.lexer.linestart - len(t.value)
-		print("Empty char literal at line", t.lineno, "column", column)
-
-	def t_long_char_lit(self, t):
-		r'\'([^\\\n]|(\\.))+\''
+	def t_invalid_char_lit(self, t):
+		r'\'([^\\\n]|(\\.))*\''
 		column = t.lexer.lexpos - t.lexer.linestart - len(t.value)
 		print("Invalid char literal", t.value, "at line", t.lineno, "column", column)
 
@@ -108,6 +101,11 @@ class Lexer:
 		t.value = value
 		return t
 
+	def t_invalid_str_lit(self, t):
+		r'\"([^\\\n]|(\\.))*\"'
+		column = t.lexer.lexpos - t.lexer.linestart - len(t.value)
+		print("Invalid string literal", t.value, "at line", t.lineno, "column", column)
+
 	def t_unclosed_str_lit(self, t):
 		r'\"([^\\\n]|(\\.))*'
 		column = t.lexer.lexpos - t.lexer.linestart - len(t.value)
@@ -115,17 +113,19 @@ class Lexer:
 
 	def t_FLOAT_LIT(self, t):
 		r'\d+\.\d+'
-		t.value = ctypes.c_float(float(t.value))
+		value = float(t.value)
+		t.value = value
 		return t
 
 	def t_INT_LIT(self, t):
 		r'\d+'
-		t.value = ctypes.c_int32(int(t.value))
+		value = int(t.value)
+		t.value = value
 		return t
 
 	def t_ID(self, t):
 		r'[a-zA-Z_][a-zA-Z_0-9]*'
-		t.type = Lexer.keywords.get(t.value,'ID')
+		t.type = Lexer.keywords.get(t.value, 'ID')
 		return t
 
 	def t_newline(self, t):
@@ -137,7 +137,7 @@ class Lexer:
 		err_val  = t.value[0]
 		err_line = t.lexer.lineno
 		err_col  = t.lexer.lexpos - t.lexer.linestart - len(err_val)
-		print("Illegal character '%s'" % err_val, "at line", err_line, "column", err_col)
+		print("Illegal character", err_val, "at line", err_line, "column", err_col)
 		t.lexer.skip(1)
 
 	def build(self, **kwargs):
@@ -154,7 +154,19 @@ class Lexer:
 
 if __name__ == '__main__':
 	lexer = Lexer()
-	with open("examples\\incorrect\\char_str.txt", 'r', encoding='utf-8') as f:
+
+	f1 = "examples\\incorrect\\literals.txt"
+	with open(f1, 'r', encoding='utf-8') as f:
+		print(f1)
 		code = f.read()
 		for t in lexer.lex(code):
-			print(t.type, "val=", t.value, " at line ", t.lineno)
+			print("Token", t.type, "value =", t.value, "at line", t.lineno)
+
+	print()
+
+	f2 = "examples\\correct\\1.txt"
+	with open(f2, 'r', encoding='utf-8') as f:
+		print(f2)
+		code = f.read()
+		for t in lexer.lex(code):
+			print("Token", t.type, "value =", t.value, "at line", t.lineno)

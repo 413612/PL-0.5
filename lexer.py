@@ -146,8 +146,7 @@ class Lexer:
 
 	def lex(self, input):
 		self.lexer.input(input)
-		for token in self.lexer:
-			yield token
+		return [token for token in self.lexer]
 
 	def __init__(self):
 		self.build()

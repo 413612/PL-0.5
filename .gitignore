@@ -1,1 +1,4 @@
 *.code-workspace
+.vscode
+__pycache__
+ply

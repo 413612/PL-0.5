@@ -1,7 +1,10 @@
+from llvmlite import ir
+
 import ast
 import utils
 
 from lexer import Lexer
+
 
 
 def get_rpn(i, tokens):
@@ -100,10 +103,10 @@ def func_call_parse(i, tokens, parent):
         while tokens[i].type != 'RPAREN':
             if utils.is_number(tokens[i].type):
                 if tokens[i].type == 'INT_LIT':
-                    numb = ast.IntLiteralAST(int(tokens[i].value))
+                    numb = ast.IntLiteralAST(tokens[i].value)
                     args.append(numb)
                 elif tokens[i].type == 'FLOAT_LIT':
-                    numb = ast.FloatLiteralAST(float(tokens[i].value))
+                    numb = ast.FloatLiteralAST(tokens[i].value)
                     args.append(numb)
                 elif tokens[i].type == 'CHAR_LIT':
                     char = ast.CharLiteralAST(tokens[i].value)
@@ -114,7 +117,9 @@ def func_call_parse(i, tokens, parent):
                     error = "Переменная с имененем " + tokens[i].value + " не объявлена."
                     print(error)
                     return None, i, error
-                args.append(tokens[i].value)
+                var_def_obj = ast.VarDefAST(parent)
+                var_def_obj.set_var_dec(obj)
+                args.append(var_def_obj)
             i += 1
     if name != "":
         obj = parent.get_children(name)
@@ -142,18 +147,23 @@ def proc_call_parse(i, tokens, parent):
     while tokens[i].type != 'SEMI':
         if utils.is_number(tokens[i].type):
             if tokens[i].type == 'INT_LIT':
-                numb = ast.IntLiteralAST(int(tokens[i].value))
+                numb = ast.IntLiteralAST(tokens[i].value)
                 args.append(numb)
             elif tokens[i].type == 'FLOAT_LIT':
-                numb = ast.FloatLiteralAST(float(tokens[i].value))
+                numb = ast.FloatLiteralAST(tokens[i].value)
                 args.append(numb)
+            elif tokens[i].type == 'CHAR_LIT':
+                char = ast.CharLiteralAST(tokens[i].value)
+                args.append(char)
         elif tokens[i].type == 'ID':
             obj = parent.get_children(tokens[i].value)
             if obj is None:
                 error = "Переменная с имененем " + tokens[i].value + " не объявлена."
                 print(error)
                 return None, i, error
-            args.append(tokens[i].value)
+            var_def_obj = ast.VarDefAST(parent)
+            var_def_obj.set_var_dec(obj)
+            args.append(var_def_obj)
         i += 1
     if name != "":
         obj = parent.get_children(name)
@@ -183,11 +193,11 @@ def bin_op_parse(i: int, tokens, parent: ast.BaseAST):
     stack = []
     for k in range(len(rpn)):
         if tokens[rpn[k]].type == 'INT_LIT':
-            hs = ast.IntLiteralAST(int(tokens[rpn[k]].value))
+            hs = ast.IntLiteralAST(tokens[rpn[k]].value)
             stack.append(hs)
             continue
         elif tokens[rpn[k]].type == 'FLOAT_LIT':
-            hs = ast.FloatLiteralAST(float(tokens[rpn[k]].value))
+            hs = ast.FloatLiteralAST(tokens[rpn[k]].value)
             stack.append(hs)
             continue
         elif tokens[rpn[k]].type == 'ID':
@@ -630,5 +640,9 @@ if __name__ == '__main__':
         code = f.read()
         tokens = lexer.lex(code)
         root, i, errors = base_parse(tokens)
+
         print_result(root)
-    
+
+        module = ir.Module('module')
+        root.code_gen(module)
+        print(module)

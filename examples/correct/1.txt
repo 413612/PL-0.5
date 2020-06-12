@@ -2,7 +2,7 @@ var b int;
 proc aa(i int):
 end
 func gg(i int)int:
-	return i * i;
+	return i * i * i;
 end
 func main() int:
 	var a int;
@@ -19,10 +19,10 @@ func main() int:
 			elif 2 = 2:
 				a = a * a;
 			elif a = a:
-				a = a = a; # a := (a==a)
+				a = a / a;
 			else:
 				if 4 = 4:
-					a = a = gg(a);
+					a = a + gg(a);
 					aa a;
 					aa 1;
 				end

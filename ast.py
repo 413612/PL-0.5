@@ -6,20 +6,48 @@ class BaseAST:
         self.parent = parent
         self.children = {}
 
-    def add_child(self, name, obj):
-        self.children[name] = obj
-
-    def get_children(self, name):
-        return self.children.get(name) or self.parent and self.parent.get_children(name)
-
     def set_parent(self, value):
         self.parent = value
 
     def get_parent(self):
         return self.parent
 
+    def add_child(self, name, obj):
+        obj.set_parent(self)
+        self.children[name] = obj
+
+    def get_children(self, name):
+        return self.children.get(name) or self.parent and self.parent.get_children(name)
+
     def code_gen(self, module):
         pass
+
+
+class CharLiteralAST(BaseAST):
+    def __init__(self, value, parent=None):
+        super().__init__(parent=parent)
+        self.value = value
+
+    def get_type(self):
+        return 'CHAR'
+
+
+class IntLiteralAST(BaseAST):
+    def __init__(self, value, parent=None):
+        super().__init__(parent=parent)
+        self.value = value
+
+    def get_type(self):
+        return 'INT'
+
+
+class FloatLiteralAST(BaseAST):
+    def __init__(self, value, parent=None):
+        super().__init__(parent=parent)
+        self.value = value
+
+    def get_type(self):
+        return 'FLOAT'
 
 
 class VarDecAST(BaseAST):
@@ -45,118 +73,40 @@ class VarDecAST(BaseAST):
     def set_type(self, value):
         self.type = value
 
+    def get_type(self):
+        return self.type
+
     def set_value(self, value):
         self.value = value
 
-    def get_type(self):
-        return self.type
+    def get_value(self):
+        return self.value
 
 
 class VarDefAST(BaseAST):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.var_dec = None
+        self.dim = -1
         self.value = None
+        self.var_dec = None
 
-    def set_declaration(self, obj):
+    def set_dim(self, dim):
+        self.dim = dim
+
+    def get_dim(self):
+        return self.dim
+
+    def set_var_dec(self, obj):
         self.var_dec = obj
+
+    def get_var_dec(self):
+        return self.var_dec
 
     def set_value(self, value):
         self.value = value
 
     def get_type(self):
         return self.var_dec.type
-
-
-class IntLiteralAST(BaseAST):
-    def __init__(self, value: int, parent=None):
-        super().__init__(parent=parent)
-        self.value = value
-
-    def get_type(self):
-        return 'INT'
-
-
-class FloatLiteralAST(BaseAST):
-    def __init__(self, value: float, parent=None):
-        super().__init__(parent=parent)
-        self.value = value
-
-    def get_type(self):
-        return 'FLOAT'
-
-
-class CompoundExpression(BaseAST):
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self.order_operations = []
-
-    def set_child(self, obj):
-        obj.set_parent(self)
-        self.order_operations.append(obj)
-
-    def get_var_def(self, name):
-        ops = self.order_operations.copy()
-        ops.reverse()
-        for o in ops:
-            if isinstance(o, BinaryAST) and o.operator == 'EQ' and isinstance(o.lhs, VarDefAST) and o.lhs.var_dec.name == name:
-                return o.lhs
-        return None
-
-
-class ProcedureDefAST(CompoundExpression):
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self.name = ""
-        self.args = []
-        self.body = None
-        self.proc = None
-
-    def set_name(self, value):
-        self.name = value
-
-    def set_body(self, obj):
-        self.body = obj
-
-    def add_arg(self, arg):
-        self.args.append(arg)
-        self.add_child(arg.name, arg)
-
-
-class FunctionDefAST(CompoundExpression):
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self.name = ""
-        self.args = []
-        self.return_value = None
-        self.type = None
-        self.body = None
-        self.func = None
-
-    def set_name(self, value):
-        self.name = value
-
-    def set_body(self, obj):
-        self.body = obj
-
-    def set_type(self, t):
-        self.type = t
-
-    def add_arg(self, arg):
-        self.args.append(arg)
-        self.add_child(arg.name, arg)
-
-    def set_return_value(self, obj):
-        self.return_value = obj
-
-
-class ReturnAst(BaseAST):
-    def __init__(self, parent=None):
-        super().__init__(parent=parent)
-        self.value = None
-
-    def set_value(self, value):
-        self.value = value
 
 
 class ProcedureCallAST(BaseAST):
@@ -167,6 +117,9 @@ class ProcedureCallAST(BaseAST):
 
     def set_parent(self, value):
         self.parent = value
+
+    def is_valid(self):
+        pass
 
 
 class FunctionCallAST(BaseAST):
@@ -183,11 +136,16 @@ class FunctionCallAST(BaseAST):
         self.ret = name
 
     def get_type(self):
-        t = self.func_callee.type
-        if t in ['int', 'INT']:
-            return 'INT'
-        elif t in ['float', 'FLOAT']:
-            return 'FLOAT'
+        return self.func_callee.type
+
+
+class ReturnAst(BaseAST):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.value = None
+
+    def set_value(self, value):
+        self.value = value
 
 
 class AssignmentAST(BaseAST):
@@ -240,6 +198,24 @@ class BinaryAST(BaseAST):
             return None
 
 
+class CompoundExpression(BaseAST):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.order_operations = []
+
+    def set_child(self, obj):
+        obj.set_parent(self)
+        self.order_operations.append(obj)
+
+    def get_var_def(self, name):
+        ops = self.order_operations.copy()
+        ops.reverse()
+        for o in ops:
+            if isinstance(o, AssignmentAST) and o.lval.var_dec.name == name:
+                return o.lval
+        return None
+
+
 class ExprIfAST(CompoundExpression):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
@@ -281,3 +257,49 @@ class ExprDoWhileAST(CompoundExpression):
 
     def set_body(self, obj):
         self.body = obj
+
+
+class ProcedureDefAST(CompoundExpression):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.name = ""
+        self.args = []
+        self.body = None
+        self.proc = None
+
+    def set_name(self, value):
+        self.name = value
+
+    def set_body(self, obj):
+        self.body = obj
+
+    def add_arg(self, arg):
+        self.args.append(arg)
+        self.add_child(arg.name, arg)
+
+
+class FunctionDefAST(CompoundExpression):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.name = ""
+        self.args = []
+        self.return_value = None
+        self.type = None
+        self.body = None
+        self.func = None
+
+    def set_name(self, value):
+        self.name = value
+
+    def set_body(self, obj):
+        self.body = obj
+
+    def set_type(self, t):
+        self.type = t
+
+    def add_arg(self, arg):
+        self.args.append(arg)
+        self.add_child(arg.name, arg)
+
+    def set_return_value(self, obj):
+        self.return_value = obj

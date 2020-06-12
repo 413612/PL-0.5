@@ -6,8 +6,8 @@ from lexer import Lexer
 
 def get_rpn(i, tokens):
     res, stack, error = [], [], ''
-    while tokens[i].type != 'SEMI':
-        if tokens[i].type == 'INT_LIT' or tokens[i].type == 'FLOAT_LIT':
+    while tokens[i].type not in ['SEMI', 'COLON']:
+        if tokens[i].type == 'INT_LIT' or tokens[i].type == 'FLOAT_LIT' or tokens[i].type == 'CHAR_LIT':
             res.append(i)
             i += 1
             continue
@@ -39,7 +39,6 @@ def get_rpn(i, tokens):
             while tokens[stack[-1]].type != 'LPAREN':
                 res.append(stack.pop())
                 if len(stack) == 0:
-                    print('!!!')
                     break
             if len(stack) > 0:
                 if tokens[stack[-1]].type == 'LPAREN':
@@ -106,6 +105,9 @@ def func_call_parse(i, tokens, parent):
                 elif tokens[i].type == 'FLOAT_LIT':
                     numb = ast.FloatLiteralAST(float(tokens[i].value))
                     args.append(numb)
+                elif tokens[i].type == 'CHAR_LIT':
+                    char = ast.CharLiteralAST(tokens[i].value)
+                    args.append(char)
             elif tokens[i].type == 'ID':
                 obj = parent.get_children(tokens[i].value)
                 if obj is None:
@@ -205,7 +207,7 @@ def bin_op_parse(i: int, tokens, parent: ast.BaseAST):
                         stack.append(call_obj)
                 else:
                     var_def_obj = ast.VarDefAST(parent)
-                    var_def_obj.set_declaration(obj)
+                    var_def_obj.set_var_dec(obj)
                     stack.append(var_def_obj)
         elif utils.is_operator(tokens[rpn[k]].type):
             bin_op = ast.BinaryAST()
@@ -378,7 +380,10 @@ def parse(i, tokens, parent=None):
                 return None, i, error
         elif tokens[i + 1].type == 'EQ':
             assignment = ast.AssignmentAST(parent)
-            assignment.set_lval(parent.get_var_def(tokens[i].value))
+            var_dec_obj = parent.get_children(tokens[i].value)
+            var_def_obj = ast.VarDefAST(parent)
+            var_def_obj.set_var_dec(var_dec_obj)
+            assignment.set_lval(var_def_obj)
             obj, i, error = bin_op_parse(i + 2, tokens, parent)
             if obj is None:
                 print(error)
@@ -394,6 +399,8 @@ def parse(i, tokens, parent=None):
         obj, i, error = expr_if_parse(i, tokens, parent)
     elif tokens[i].type == 'WHILE':
         obj, i, error = expr_while_parse(i, tokens, parent)
+    elif tokens[i].type == 'DO':
+        obj, i, error = expr_do_while_parse(i, tokens, parent)
     elif tokens[i].type == 'RETURN':
         i += 1
         obj, i, error = bin_op_parse(i, tokens, parent)
@@ -536,13 +543,56 @@ def expr_while_parse(i, tokens, parent=None):
             if error != "":
                 print(error)
                 return None, i, error
+            i += 1
             while_expr.set_body(compound_expression)
+            break
     return while_expr, i, error
 
 
+
+def expr_do_while_parse(i, tokens, parent=None):
+    error = ""
+    expr_do = None
+    while tokens[i].type != 'SEMI':
+        if tokens[i].type == 'DO':
+            expr_do = ast.ExprDoWhileAST(parent)
+            compound_expression = ast.CompoundExpression(parent=expr_do)
+            i += 1
+            continue
+        else:
+            while tokens[i].type != 'WHILE':
+                compound_expression, i, error = compound_expression_parse(i, tokens, compound_expression)
+                i += 1
+            if error != "":
+                print(error)
+                return None, i, error
+            if tokens[i].type == 'WHILE':
+                j = i
+                while tokens[j].type not in ['SEMI', 'COLON']:
+                    j += 1
+                if tokens[j].type == 'COLON':
+                    print(1)
+                    compound_expression, i, error = compound_expression_parse(i, tokens, compound_expression)
+                    print_result(compound_expression)
+                    continue
+                elif tokens[j].type == 'SEMI':
+                    print(2)
+                    print_result(compound_expression)
+                    expr = ast.BinaryAST(expr_do)
+                    expr, i, error = bin_op_parse(i + 1, tokens, expr)
+                    if error != "":
+                        print(error)
+                        return None, i, error
+                    expr_do.set_body(compound_expression)
+                    expr_do.set_expression(expr)
+                    break
+    return expr_do, i, error
+
+
 def print_result(root, i=0):
-    print('   ' * i, type(root))
-    if root is None: return
+    print('  ' * i, type(root).__name__)
+    if root is None:
+        return
     elif isinstance(root, (ast.ExprWhileAST, ast.ExprDoWhileAST)):
         print_result(root.expression, i + 1)
         print_result(root.body, i + 1)
@@ -551,21 +601,25 @@ def print_result(root, i=0):
         print_result(root.then_body, i + 1)
         print_result(root.else_body, i + 1)
     elif isinstance(root, ast.BinaryAST):
-        print('   ' * i, root.operator)
+        print('  ' * i, root.operator)
         print_result(root.lhs, i + 1)
         print_result(root.rhs, i + 1)
     elif isinstance(root, ast.AssignmentAST):
         print_result(root.lval, i + 1)
         print_result(root.rval, i + 1)
+    elif isinstance(root, ast.VarDecAST):
+        print('  ' * i, root.name, root.type)
     elif isinstance(root, ast.VarDefAST):
-        print('   ' * i, root.var_dec.name)
-    elif isinstance(root, ast.IntLiteralAST):
-        print('   ' * i, root.value)
+        print('  ' * i, root.var_dec.name)
+    elif isinstance(root, (ast.IntLiteralAST, ast.FloatLiteralAST, ast.CharLiteralAST)):
+        print('  ' * i, root.value)
     elif isinstance(root, ast.FunctionCallAST):
-        print('   ' * i, root.func_callee.name, root.args)
+        print('  ' * i, root.func_callee.name, root.args)
     elif isinstance(root, ast.ProcedureCallAST):
-        print('   ' * i, root.proc_callee.name, root.args)
+        print('  ' * i, root.proc_callee.name, root.args)
     elif isinstance(root, ast.CompoundExpression):
+        if isinstance(root, (ast.FunctionDefAST, ast.ProcedureDefAST)):
+            print('  ' * i, root.name)
         for op in root.order_operations:
             print_result(op, i + 1)
 

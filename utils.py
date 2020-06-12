@@ -16,7 +16,7 @@ def is_number(t):
 
 
 def is_type(t):
-    return t in ['INT', 'FLOAT']
+    return t in ['INT', 'FLOAT', 'CHAR']
 
 
 def is_operator(t):

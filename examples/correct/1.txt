@@ -1,27 +1,33 @@
 var b int;
-proc puts(i int):
+proc aa(i int):
 end
 func gg(i int)int:
 	return i * i;
 end
 func main() int:
 	var a int;
+	var z char;
+	var q int;
+	q = 1;
+	do
 		while 1 = 1:
 			if 1 = 1:
+				# char = 'a';
 				if 3 = 3:
 					a = a + 1;
 				end
 			elif 2 = 2:
 				a = a * a;
 			elif a = a:
-				a = a = a;
+				a = a = a; # a := (a==a)
 			else:
 				if 4 = 4:
 					a = a = gg(a);
-					puts a;
-					puts 1;
+					aa a;
+					aa 1;
 				end
 			end
 		end
+	while 0 <> 0;
 	return 0;
 end

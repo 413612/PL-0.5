@@ -82,7 +82,12 @@ class Lexer:
 	def t_CHAR_LIT(self, t):
 		r'\'([^\\\n]|(\\[abtnvfre\\\'\"])|(\\[0-3][0-7][0-7]))\''
 		value = t.value[1:-1]
-		t.value = value
+		if value in ESCAPE_SEQUENCES.keys():
+			t.value = ESCAPE_SEQUENCES[value]
+		elif '\\' in value:
+			t.value = int(value[1:], base=8)
+		else:
+			t.value = ord(value)
 		return t
 
 	def t_invalid_char_lit(self, t):

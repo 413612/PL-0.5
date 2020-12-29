@@ -684,7 +684,12 @@ if __name__ == '__main__':
 
         print(str(mod))
 
-        print(target_machine.emit_assembly(mod))
+        asm = target_machine.emit_assembly(mod)
+
+        print(asm)
+
+        with open("examples\\correct\\1.s", 'w') as asm_file:
+            asm_file.write(asm)
 
         with open("examples\\correct\\1.elf", 'wb') as obj_file:
             obj_file.write(target_machine.emit_object(mod))

@@ -661,8 +661,25 @@ if __name__ == '__main__':
 
         pass_builder = binding.create_pass_manager_builder()
         mod_pass = binding.create_module_pass_manager()
-        pass_builder.opt_level = 2
-        pass_builder.populate(mod_pass)
+
+        # pass_builder.opt_level = 2
+        # pass_builder.populate(mod_pass)
+
+        mod_pass.add_constant_merge_pass()
+        mod_pass.add_dead_arg_elimination_pass()
+        mod_pass.add_function_inlining_pass(225)
+        mod_pass.add_global_dce_pass()
+        mod_pass.add_global_optimizer_pass()
+        mod_pass.add_ipsccp_pass()
+        mod_pass.add_dead_code_elimination_pass()
+        mod_pass.add_cfg_simplification_pass()
+        mod_pass.add_gvn_pass()
+        mod_pass.add_instruction_combining_pass()
+        mod_pass.add_licm_pass()
+        mod_pass.add_sccp_pass()
+        mod_pass.add_type_based_alias_analysis_pass()
+        mod_pass.add_basic_alias_analysis_pass()
+
         print(mod_pass.run(mod))
 
         print(str(mod))

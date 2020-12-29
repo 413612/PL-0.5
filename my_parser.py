@@ -1,4 +1,5 @@
 from llvmlite import ir
+from llvmlite import binding
 
 import ast
 import utils
@@ -581,13 +582,10 @@ def expr_do_while_parse(i, tokens, parent=None):
                 while tokens[j].type not in ['SEMI', 'COLON']:
                     j += 1
                 if tokens[j].type == 'COLON':
-                    print(1)
                     compound_expression, i, error = compound_expression_parse(i, tokens, compound_expression)
-                    print_result(compound_expression)
                     continue
                 elif tokens[j].type == 'SEMI':
-                    print(2)
-                    print_result(compound_expression)
+
                     expr = ast.BinaryAST(expr_do)
                     expr, i, error = bin_op_parse(i + 1, tokens, expr)
                     if error != "":
@@ -641,8 +639,36 @@ if __name__ == '__main__':
         tokens = lexer.lex(code)
         root, i, errors = base_parse(tokens)
 
-        print_result(root)
+        binding.initialize()
+        binding.initialize_all_targets()
+        binding.initialize_all_asmprinters()
+
+        triple = binding.get_default_triple() # 'mips-PC-Linux-GNU'
 
         module = ir.Module('module')
+        module.triple = triple
+
+        target = binding.Target.from_triple(triple)
+        target_machine = target.create_target_machine()
+
+        backing_module = binding.parse_assembly("")
+        engine = binding.create_mcjit_compiler(backing_module, target_machine)
+
         root.code_gen(module)
-        print(module)
+
+        pass_builder = binding.create_pass_manager_builder()
+        mod_pass = binding.create_module_pass_manager()
+        pass_builder.opt_level = 2
+        pass_builder.populate(mod_pass)
+
+        llvm_ir = str(module)
+        mod = binding.parse_assembly(llvm_ir)
+        mod.verify()
+
+        engine.add_module(mod)
+        engine.finalize_object()
+        engine.run_static_constructors()
+
+        print(str(mod))
+
+        print(target_machine.emit_assembly(mod))

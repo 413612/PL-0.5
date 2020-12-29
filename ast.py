@@ -391,23 +391,13 @@ class ExprIfAST(CompoundExpression):
         then_value = self.then_body.code_gen(module, builder)
         builder.branch(merge_block)
 
-        then_block = builder.basic_block
-
         builder.position_at_end(else_block)
-        if self.else_body:
-            else_value = self.else_body.code_gen(module, builder)
+        else_value = self.else_body and self.else_body.code_gen(module, builder)
         builder.branch(merge_block)
 
-        else_block = builder.basic_block
-
         builder.position_at_end(merge_block)
-        phi = builder.phi(INT, 'iftmp')
 
-        phi.add_incoming(then_value, then_block)
-        if self.else_body:
-            phi.add_incoming(else_value, else_block)
-
-        return phi
+        return merge_block
 
 
 class ExprWhileAST(CompoundExpression):
@@ -524,6 +514,8 @@ class ProcedureDefAST(CompoundExpression):
 
         for op in self.order_operations:
             op.code_gen(func, builder)
+        if builder.block.terminator is None:
+            builder.ret_void()
 
 
 class FunctionDefAST(CompoundExpression):

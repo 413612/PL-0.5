@@ -554,7 +554,7 @@ def expr_while_parse(i, tokens, parent=None):
             if error != "":
                 print(error)
                 return None, i, error
-            i += 1
+            # i += 1
             while_expr.set_body(compound_expression)
             break
     return while_expr, i, error
@@ -639,6 +639,8 @@ if __name__ == '__main__':
         tokens = lexer.lex(code)
         root, i, errors = base_parse(tokens)
 
+        print_result(root)
+
         binding.initialize()
         binding.initialize_all_targets()
         binding.initialize_all_asmprinters()
@@ -666,3 +668,6 @@ if __name__ == '__main__':
         print(str(mod))
 
         print(target_machine.emit_assembly(mod))
+
+        with open("examples\\correct\\1.elf", 'wb') as obj_file:
+            obj_file.write(target_machine.emit_object(mod))

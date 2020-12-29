@@ -207,10 +207,7 @@ class ReturnAst(BaseAST):
         self.value = value
 
     def code_gen(self, func, builder=None):
-        if isinstance(self.value, VarDefAST):
-            tmp = self.value.var_dec.get_ptr()
-        else:
-            tmp = self.value.code_gen(func, builder)
+        tmp = self.value.code_gen(func, builder)
         builder.ret(tmp)
 
 

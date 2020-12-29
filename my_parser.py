@@ -651,23 +651,17 @@ if __name__ == '__main__':
         target = binding.Target.from_triple(triple)
         target_machine = target.create_target_machine()
 
-        backing_module = binding.parse_assembly("")
-        engine = binding.create_mcjit_compiler(backing_module, target_machine)
-
         root.code_gen(module)
-
-        pass_builder = binding.create_pass_manager_builder()
-        mod_pass = binding.create_module_pass_manager()
-        pass_builder.opt_level = 2
-        pass_builder.populate(mod_pass)
 
         llvm_ir = str(module)
         mod = binding.parse_assembly(llvm_ir)
         mod.verify()
 
-        engine.add_module(mod)
-        engine.finalize_object()
-        engine.run_static_constructors()
+        pass_builder = binding.create_pass_manager_builder()
+        mod_pass = binding.create_module_pass_manager()
+        pass_builder.opt_level = 2
+        pass_builder.populate(mod_pass)
+        print(mod_pass.run(mod))
 
         print(str(mod))
 

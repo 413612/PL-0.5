@@ -1,6 +1,8 @@
-import utils
+from typing import Optional, Union
 
 from llvmlite import ir
+
+import utils
 
 
 INT   = ir.IntType(32)
@@ -18,14 +20,14 @@ def get_llvm_prm_type(t):
 
 
 class BaseAST:
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional['BaseAST'] = None):
         self.parent = parent
         self.children = {}
 
-    def set_parent(self, value):
+    def set_parent(self, value: 'BaseAST'):
         self.parent = value
 
-    def get_parent(self):
+    def get_parent(self) -> Optional['BaseAST']:
         return self.parent
 
     def add_child(self, name, obj):
@@ -35,7 +37,7 @@ class BaseAST:
     def get_children(self, name):
         return self.children.get(name) or self.parent and self.parent.get_children(name)
 
-    def code_gen(self, module):
+    def code_gen(self, module: ir.Module):
         pass
 
 
@@ -47,7 +49,7 @@ class CharLiteralAST(BaseAST):
     def get_type(self):
         return 'CHAR'
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         return ir.Constant(INT, self.value)
 
 
@@ -59,7 +61,7 @@ class IntLiteralAST(BaseAST):
     def get_type(self):
         return 'INT'
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         return ir.Constant(INT, self.value)
 
 
@@ -71,7 +73,7 @@ class FloatLiteralAST(BaseAST):
     def get_type(self):
         return 'FLOAT'
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         return ir.Constant(FLOAT, self.value)
 
 
@@ -82,7 +84,7 @@ class VarDecAST(BaseAST):
         self.name = ""
         self.type = None
         self.value = None
-        self.ptr = None
+        self.ptr: Optional[Union[ir.Argument, ir.AllocaInstr, ir.GlobalVariable]] = None
         self.is_global = False
 
     def set_dim(self, value):
@@ -109,7 +111,7 @@ class VarDecAST(BaseAST):
     def get_value(self):
         return self.value
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         t = get_llvm_prm_type(self.type)
         if self.get_parent().get_parent() is None:
             v = ir.GlobalVariable(module, t, self.name)
@@ -125,7 +127,7 @@ class VarDefAST(BaseAST):
         super().__init__(parent=parent)
         self.dim = -1
         self.value = None
-        self.var_dec = None
+        self.var_dec: Optional[VarDecAST] = None
 
     def set_dim(self, dim):
         self.dim = dim
@@ -145,8 +147,8 @@ class VarDefAST(BaseAST):
     def get_type(self):
         return self.var_dec.type
 
-    def code_gen(self, module, builder=None):
-        if type(self.var_dec.ptr) == ir.Argument:
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
+        if type(self.var_dec.ptr) is ir.Argument:
             return self.var_dec.ptr
         else:
             return builder.load(self.var_dec.ptr, name=self.var_dec.name)
@@ -164,7 +166,7 @@ class ProcedureCallAST(BaseAST):
     def is_valid(self):
         pass
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         args = []
         for a in self.args:
             args.append(a.code_gen(module, builder))
@@ -176,7 +178,7 @@ class ProcedureCallAST(BaseAST):
 class FunctionCallAST(BaseAST):
     def __init__(self, func, args, parent=None):
         super().__init__(parent=parent)
-        self.func_callee = func
+        self.func_callee: FunctionDefAST = func
         self.args = args
         self.ret = None
 
@@ -189,7 +191,7 @@ class FunctionCallAST(BaseAST):
     def get_type(self):
         return self.func_callee.type
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         args = []
         for a in self.args:
             args.append(a.code_gen(module, builder))
@@ -206,7 +208,7 @@ class ReturnAst(BaseAST):
     def set_value(self, value):
         self.value = value
 
-    def code_gen(self, func, builder=None):
+    def code_gen(self, func, builder: Optional[ir.IRBuilder] = None):
         tmp = self.value.code_gen(func, builder)
         builder.ret(tmp)
 
@@ -214,7 +216,7 @@ class ReturnAst(BaseAST):
 class AssignmentAST(BaseAST):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        self.lval = None
+        self.lval: Optional[VarDefAST] = None
         self.rval = None
 
     def set_lval(self, value):
@@ -229,7 +231,7 @@ class AssignmentAST(BaseAST):
         else:
             return False
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         rval_code = self.rval.code_gen(module, builder)
         builder.store(rval_code, self.lval.var_dec.ptr)
         return self.lval.var_dec.ptr
@@ -239,8 +241,8 @@ class BinaryAST(BaseAST):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.operator = None
-        self.lhs = None
-        self.rhs = None
+        self.lhs: Optional[Union['BinaryAST', VarDefAST]] = None
+        self.rhs: Optional[Union['BinaryAST', VarDefAST]] = None
 
     def set_lhs(self, value):
         self.lhs = value
@@ -265,7 +267,7 @@ class BinaryAST(BaseAST):
         else:
             return None
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         code_lhs = self.lhs.code_gen(module, builder)
         code_rhs = self.rhs.code_gen(module, builder)
         if code_lhs is None or code_rhs is None:
@@ -351,7 +353,7 @@ class CompoundExpression(BaseAST):
                 return o.lval
         return None
 
-    def code_gen(self, module, bb=None):
+    def code_gen(self, module: ir.Module, bb: Optional[ir.Block] = None):
         for op in self.order_operations:
             op.code_gen(module, bb)
         return module
@@ -373,7 +375,7 @@ class ExprIfAST(CompoundExpression):
     def set_else(self, obj):
         self.else_body = obj
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         expr = self.expression.code_gen(module, builder)
 
         func = builder.basic_block.function
@@ -409,7 +411,7 @@ class ExprWhileAST(CompoundExpression):
     def set_body(self, obj):
         self.body = obj
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         func = builder.basic_block.function
 
         expr_block = func.append_basic_block('expr')
@@ -447,7 +449,7 @@ class ExprDoWhileAST(CompoundExpression):
     def set_body(self, obj):
         self.body = obj
 
-    def code_gen(self, module, builder=None):
+    def code_gen(self, module: ir.Module, builder: Optional[ir.IRBuilder] = None):
         func = builder.basic_block.function
 
         body_loop = func.append_basic_block('loop')
@@ -477,9 +479,9 @@ class ProcedureDefAST(CompoundExpression):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.name = ""
-        self.args = []
+        self.args: list[VarDecAST] = []
         self.body = None
-        self.proc = None
+        self.proc: Optional[ir.Function] = None
 
     def set_name(self, value):
         self.name = value
@@ -487,16 +489,12 @@ class ProcedureDefAST(CompoundExpression):
     def set_body(self, obj):
         self.body = obj
 
-    def add_arg(self, arg):
+    def add_arg(self, arg: VarDecAST):
         self.args.append(arg)
         self.add_child(arg.name, arg)
 
-    def code_gen(self, module, bb=None):
-        args_type = []
-        for arg in self.args:
-            t = get_llvm_prm_type(arg.type)
-            args_type.append(t)
-
+    def code_gen(self, module: ir.Module, bb: Optional[ir.Block] = None):
+        args_type = [get_llvm_prm_type(arg.type) for arg in self.args]
         ty_func = ir.FunctionType(VOID, args_type)
         func = ir.Function(module, ty_func, self.name)
 
@@ -519,11 +517,11 @@ class FunctionDefAST(CompoundExpression):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.name = ""
-        self.args = []
+        self.args: list[VarDecAST] = []
         self.return_value = None
         self.type = None
         self.body = None
-        self.func = None
+        self.func: Optional[ir.Function] = None
 
     def set_name(self, value):
         self.name = value
@@ -534,14 +532,14 @@ class FunctionDefAST(CompoundExpression):
     def set_type(self, t):
         self.type = t
 
-    def add_arg(self, arg):
+    def add_arg(self, arg: VarDecAST):
         self.args.append(arg)
         self.add_child(arg.name, arg)
 
     def set_return_value(self, obj):
         self.return_value = obj
 
-    def code_gen(self, module, bb=None):
+    def code_gen(self, module: ir.Module, bb: Optional[ir.Block] = None):
         ret_type = get_llvm_prm_type(self.type)
 
         args_type = [get_llvm_prm_type(arg.type) for arg in self.args]
